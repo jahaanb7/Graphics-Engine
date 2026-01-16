@@ -1,123 +1,38 @@
-# Graphics-Engine
-Simple 3D Engine (Java)
+# Simple 3D Engine from scratch in Java
 
-This project is a small 3D graphics engine written in plain Java. It draws 3D shapes in a 2D window using basic math — no external libraries.
+This project is a small 3D graphics engine written in plain Java. It draws simple 3D objects onto a 2D screen using basic math and no external libraries.
 
-What it Does
+## What It Does
+- Draws 3D wireframe objects (like cubes)
+- Rotates them in 3D space
+- Uses perspective projection to simulate depth
 
-Draws 3D wireframe objects (like cubes)
+## Perspective Projection (Quick Explanation)
+Perspective projection makes 3D objects appear smaller as they move further away from the viewer.
 
-Rotates them in 3D space
+Basic idea:
+x' = x / z
+y' = y / z
 
-Uses perspective so things look smaller when they're farther away
+If `z` is large → `x'` and `y'` get smaller → object looks farther away.
 
-Perspective Projection (Quick Explanation)
+## Rotation Matrices (Quick Explanation)
+Rotation matrices rotate points around an axis in 3D.
 
-Perspective projection makes 3D stuff look like it has depth. The idea is simple:
-the farther something is (bigger z), the smaller it shows up on screen.
+Example (rotation around the X axis):
+[ 1       0        0      ]
+[ 0   cosθ   -sinθ ]
+[ 0   sinθ    cosθ ]
 
-Basic idea in math form:
+Similar matrices exist for rotation around Y and Z.
 
-𝑥
-′
-=
-𝑥
-𝑧
-,
-𝑦
-′
-=
-𝑦
-𝑧
-x
-′
-=
-z
-x
-	​
+## How to Run
+1. Open the project in your Java IDE
+2. Run the main file
+3. A spinning 3D shape should appear
 
-,y
-′
-=
-z
-y
-	​
-
-
-So if z is large → x'/y' get smaller → looks farther away.
-
-Rotation Matrices (Quick Explanation)
-
-Rotation matrices are small math grids that rotate points around an axis.
-
-For example, rotating around the X axis uses:
-
-[
-1
-	
-0
-	
-0
-
-
-0
-	
-cos
-⁡
-𝜃
-	
-−
-sin
-⁡
-𝜃
-
-
-0
-	
-sin
-⁡
-𝜃
-	
-cos
-⁡
-𝜃
-]
-	​
-
-1
-0
-0
-	​
-
-0
-cosθ
-sinθ
-	​
-
-0
-−sinθ
-cosθ
-	​
-
-	​
-
-
-There are very similar ones for Y and Z. These let the engine spin objects smoothly.
-
-How to Run
-
-Open the project in your Java IDE
-
-Run the main file
-
-Watch the shape spin!
-
-Future Stuff (Maybe)
-
-Cameras
-
-Filled polygons
-
-Basic lighting
-
-Better controls
+## Future Ideas
+- Camera system
+- Filled polygons / hidden surface removal
+- Simple lighting
+- User controls for movement/rotation
