@@ -26,6 +26,13 @@ Example (rotation around the X axis):
 
 Similar matrices exist for rotation around Y and Z.
 
+##Bersenham Line Algorithm:
+- Move from the start point to the end point one pixel at a time
+- Decide whether to step in x, in y, or both based on an error value
+- Produces clean, connected lines for wireframes
+
+This engine uses Bresenham to connect 2D projected points so the wireframes look consistent.
+
 ## How to Run
 1. Open the project in your Java IDE
 2. Run the main file
