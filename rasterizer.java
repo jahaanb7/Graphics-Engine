@@ -3,8 +3,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import javax.swing.JFrame;
@@ -17,6 +17,10 @@ public class rasterizer extends  JPanel implements Runnable{
   private static final int screen_height = 800;
   private static final int screen_width = 800;
   private final double frame_speed = 1;
+
+  private double cameraX = 0; 
+  private double cameraY = 0;
+  private double cameraZ = 0;
 
   private boolean move_left = false;
   private boolean move_right = false;
@@ -68,8 +72,6 @@ public class rasterizer extends  JPanel implements Runnable{
       frame.setSize(screen_width, screen_height);
       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
       frame.setTitle("3D Model Graphics");
-      frame.setFocusable(true);
-      frame.requestFocusInWindow();
       frame.setLocationRelativeTo(null);
       frame.setVisible(true);
   }
@@ -77,23 +79,19 @@ public class rasterizer extends  JPanel implements Runnable{
   public rasterizer(){
     setPreferredSize(new Dimension(500, 500));
     setBackground(Color.BLACK);
+    setFocusable(true);
+    requestFocusInWindow();
     start();
 
-    addKeyListener(new KeyListener(){
-
+    addKeyListener(new KeyAdapter(){
       @Override
-      public void keyTyped(KeyEvent e) {
+      public void keyPressed(KeyEvent e) {
         switch(e.getKeyCode()){
           case KeyEvent.VK_W -> {move_up = true;}
           case KeyEvent.VK_S -> {move_down = true;}
           case KeyEvent.VK_D -> {move_right = true;}
           case KeyEvent.VK_A -> {move_left = true;}
         }
-      }
-
-      @Override
-      public void keyPressed(KeyEvent e) {
-        throw new UnsupportedOperationException("This is not being used (Useless) ");
       }
 
       @Override
@@ -133,6 +131,12 @@ public class rasterizer extends  JPanel implements Runnable{
       if(targetFOV < 10){targetFOV = 10;}
       if(targetFOV > 140){targetFOV = 140;}
 
+      if(move_left)  {cameraX -= 1;}
+      if(move_right) {cameraX += 1;}
+      if(move_up)    {cameraY += 1;}
+      if(move_down)  {cameraY -= 1;}
+      
+
       fov += (targetFOV - fov) * 0.2;
       scrollDelta = 0;
 
@@ -164,6 +168,12 @@ public class rasterizer extends  JPanel implements Runnable{
 
     for(int i = 0; i < object.rows; i++){
       object.data[i][2] += 50; //shift z in each row of cube by 50
+    }
+
+    for(int i=0; i<object.rows; i++){
+      object.data[i][0] -= cameraX;
+      object.data[i][1] -= cameraY;
+      object.data[i][2] -= cameraZ;
     }
 
     Matrix projected = object.project(fov, aspect,near,far);
