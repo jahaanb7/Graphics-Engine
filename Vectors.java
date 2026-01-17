@@ -1,4 +1,3 @@
-import java.awt.Color;
 
 class Vector3D{
   public double x;
@@ -20,6 +19,19 @@ class Vector3D{
     return result;
   }
 
+  public Vector3D add(Vector3D v) {
+    double x = this.x + v.x;
+    double y = this.y + v.y;
+    double z = this.z + v.z;
+
+    Vector3D result = new Vector3D(x, y, z);
+    return result;
+  }
+
+  public static Vector3D multiply(double s, Vector3D v){
+    return new Vector3D(s*v.x, s*v.y, s*v.z);
+  }
+
   public static Vector3D cross(Vector3D a, Vector3D b){
     double x = a.y * b.z - a.z * b.y;
     double y = a.z * b.x - a.x * b.z;
@@ -30,34 +42,35 @@ class Vector3D{
 
   public Vector3D normalize(){
     double length = Math.sqrt(x*x + y*y + z*z);
-    return new Vector3D(x / length, y / length, z / length);
+    return new Vector3D(x/length, y/length, z/length);
+  }
+
+  public Vector4D mul(Matrix m) {
+    double nx = this.x * m.data[0][0] + this.y * m.data[1][0] + this.z * m.data[2][0] + 1.0 * m.data[3][0];
+    double ny = this.x * m.data[0][1] + this.y * m.data[1][1] + this.z * m.data[2][1] + 1.0 * m.data[3][1];
+    double nz = this.x * m.data[0][2] + this.y * m.data[1][2] + this.z * m.data[2][2] + 1.0 * m.data[3][2];
+    double nw = this.x * m.data[0][3] + this.y * m.data[1][3] + this.z * m.data[2][3] + 1.0 * m.data[3][3];
+
+    return new Vector4D(nx, ny, nz, nw);
   }
 }
 
-class Triangle{
-  public Vector3D v1;
-  public Vector3D v2;
-  public Vector3D v3;
+class Vector4D {
+  public double x, y, z, w;
 
-  public Color color;
-  public Vector3D normal;
+  public Vector4D(double x, double y, double z, double w) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      this.w = w;
+    }
 
-  public Triangle(Vector3D v1, Vector3D v2, Vector3D v3, Color color){
-    this.v1 = v1;
-    this.v2 = v2;
-    this.v3 = v3;
+  public Vector4D mul(Matrix m) {
+    double nx = this.x * m.data[0][0] + this.y * m.data[1][0] + this.z * m.data[2][0] + 1.0 * m.data[3][0];
+    double ny = this.x * m.data[0][1] + this.y * m.data[1][1] + this.z * m.data[2][1] + 1.0 * m.data[3][1];
+    double nz = this.x * m.data[0][2] + this.y * m.data[1][2] + this.z * m.data[2][2] + 1.0 * m.data[3][2];
+    double nw = this.x * m.data[0][3] + this.y * m.data[1][3] + this.z * m.data[2][3] + 1.0 * m.data[3][3];
 
-    this.color = color;
-    this.normal = new Vector3D(0,0,0);
-  }
-
-  public void setNormal(Vector3D n){
-    this.normal = n;
-  }
-
-  public void computeNormal() {
-    Vector3D edge1 = v2.sub(v1);
-    Vector3D edge2 = v3.sub(v1);
-    this.normal = Vector3D.cross(edge1, edge2).normalize();
+    return new Vector4D(nx, ny, nz, nw);
   }
 }
