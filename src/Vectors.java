@@ -32,6 +32,11 @@ class Vector3D{
     return new Vector3D(s*v.x, s*v.y, s*v.z);
   }
 
+  public static double dot(Vector3D a, Vector3D b){
+    double result = ((a.x * b.x)+(a.y * b.y)+(a.z * b.z));
+    return result;
+  }
+
   public static Vector3D cross(Vector3D a, Vector3D b){
     double x = a.y * b.z - a.z * b.y;
     double y = a.z * b.x - a.x * b.z;
