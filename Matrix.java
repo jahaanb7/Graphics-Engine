@@ -21,6 +21,16 @@ class Matrix{
     }
   }
 
+  public Matrix add(Matrix a){
+    Matrix result = new Matrix(new double[rows][columns]);
+    for(int i = 0; i < rows; i++){
+      for(int j = 0; j < columns; j++){
+        result.data[i][j] = this.data[i][j] + a.data[i][j];
+      }
+    }
+    return result;
+  }
+
   public Matrix matrix_mul(Matrix b){
 
     int rowsA = this.rows;   
@@ -43,6 +53,16 @@ class Matrix{
         }
       }
     return new Matrix(result_matrix);
+  }
+
+  public Matrix scalar_mul(double n){
+    Matrix result = new Matrix(new double[rows][columns]);
+    for (int i = 0; i < rows; i++){
+      for (int j = 0; j < columns; j++){
+        result.data[i][j] = this.data[i][j] * n;
+      }
+    }
+    return result;
   }
 
   public Matrix transpose(){    
@@ -118,12 +138,12 @@ class Matrix{
   }
 
 public Matrix project(double fov, double aspect, double near, double far) {
-    double f = 1.0 / Math.tan(Math.toRadians(fov) / 2.0);
+    double f = 1.0/Math.tan(Math.toRadians(fov)/2.0);
 
     Matrix project = new Matrix(new double[][] {
       {(f/aspect), 0, 0, 0},
-      {0, f, 0 , 0},
-      {0, 0, ((far + near)/(far - near)), 1},
+      {0,f,0,0},
+      {0, 0,((far + near)/(far - near)), 1},
       {0,0,-((far*near)/(far - near)),0}
     });
 
