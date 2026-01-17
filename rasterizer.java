@@ -7,6 +7,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -26,6 +27,8 @@ public class rasterizer extends  JPanel implements Runnable{
   private boolean move_right = false;
   private boolean move_up = false;
   private boolean move_down = false;
+  private boolean move_camera_forward = false;
+  private boolean move_camera_backward = false;
 
   private double scrollDelta = 0;
   private final double scroll_pace = 0.54;
@@ -42,6 +45,15 @@ public class rasterizer extends  JPanel implements Runnable{
   private final long frame_time = 1_000_000_000L/fps;
   private final int size = 10;
 
+  private double f = 1.0/Math.tan(Math.toRadians(fov)/2.0);
+
+  Matrix project = new Matrix(new double[][] {
+    {(f/aspect), 0, 0, 0},
+    {0, f, 0 , 0},
+    {0, 0, ((far + near)/(far - near)), 1},
+    {0,0,-((far*near)/(far - near)),0}
+  });
+
   Matrix cube = new Matrix(new double[][]{
     {-size, -size, -size, 1},
     {-size, -size,  size, 1},
@@ -53,7 +65,6 @@ public class rasterizer extends  JPanel implements Runnable{
     { size,  size,  size, 1}
   });
 
-  // each {a,b} means to draw a line from a to b in each vertices in cube
   int[][] edges = {
     {0,1},{0,2},{0,4},
     {1,3},{1,5},
@@ -63,6 +74,15 @@ public class rasterizer extends  JPanel implements Runnable{
     {5,7},
     {6,7}
   };  
+
+  int[][] faces = {
+    {0, 1, 3, 2}, 
+    {4, 5, 7, 6}, 
+    {0, 1, 5, 4}, 
+    {2, 3, 7, 6}, 
+    {0, 2, 6, 4}, 
+    {1, 3, 7, 5}  
+  };
 
   LineDrawer drawer = new LineDrawer();
   public static void main(String[] args) {
@@ -77,10 +97,12 @@ public class rasterizer extends  JPanel implements Runnable{
   }
 
   public rasterizer(){
-    setPreferredSize(new Dimension(500, 500));
+    setPreferredSize(new Dimension(screen_width, screen_height));
     setBackground(Color.BLACK);
     setFocusable(true);
     requestFocusInWindow();
+    setOpaque(true);
+    setDoubleBuffered(true);
     start();
 
     addKeyListener(new KeyAdapter(){
@@ -91,6 +113,8 @@ public class rasterizer extends  JPanel implements Runnable{
           case KeyEvent.VK_S -> {move_down = true;}
           case KeyEvent.VK_D -> {move_right = true;}
           case KeyEvent.VK_A -> {move_left = true;}
+          case KeyEvent.VK_E -> {move_camera_forward = true;}
+          case KeyEvent.VK_Q -> {move_camera_backward = true;}
         }
       }
 
@@ -101,6 +125,8 @@ public class rasterizer extends  JPanel implements Runnable{
           case KeyEvent.VK_S -> {move_down = false;}
           case KeyEvent.VK_D -> {move_right = false;}
           case KeyEvent.VK_A -> {move_left = false;}
+          case KeyEvent.VK_E -> {move_camera_forward = false;}
+          case KeyEvent.VK_Q -> {move_camera_backward = false;}
         }
       }
     });
@@ -135,8 +161,14 @@ public class rasterizer extends  JPanel implements Runnable{
       if(move_right) {cameraX += 1;}
       if(move_up)    {cameraY += 1;}
       if(move_down)  {cameraY -= 1;}
-      
 
+      if(move_camera_forward) {cameraZ += 1;}
+      if(move_camera_backward) {cameraZ -= 1;}
+
+      if(cameraZ > 30){
+        cameraZ = 30;
+      }
+      
       fov += (targetFOV - fov) * 0.2;
       scrollDelta = 0;
 
@@ -156,54 +188,90 @@ public class rasterizer extends  JPanel implements Runnable{
     }
   }
 
-  
-
   @Override
   protected void paintComponent(Graphics g){
     super.paintComponent(g);
     Graphics2D g2 = (Graphics2D) g;
+    g2.setColor(Color.RED);
 
-    Matrix rotated = cube.combined_rotation(angle); 
-    Matrix object = cube.matrix_mul(rotated);   
+    Matrix rotation = new Matrix(new double[4][4]).combined_rotation(angle);
 
-    for(int i = 0; i < object.rows; i++){
-      object.data[i][2] += 50; //shift z in each row of cube by 50
-    }
+    ArrayList<Triangle> projectedTris = new ArrayList<>();
 
-    for(int i=0; i<object.rows; i++){
-      object.data[i][0] -= cameraX;
-      object.data[i][1] -= cameraY;
-      object.data[i][2] -= cameraZ;
-    }
+    for(Triangle tri : MyMeshes.cube.tris) {
 
-    Matrix projected = object.project(fov, aspect,near,far);
+      Vector4D r1 = tri.v1.mul(rotation);
+      Vector4D r2 = tri.v2.mul(rotation);
+      Vector4D r3 = tri.v3.mul(rotation);
 
-    //wireframe --> from which vertice to draw a line to the next vertex
-    for (int[] edge : edges) {
-      int i = edge[0];
-      int j = edge[1];
+      r1.z += 50;
+      r2.z += 50;
+      r3.z += 50;
 
-      double x1 = projected.data[i][0];
-      double y1 = projected.data[i][1];
+      r1.x -= cameraX; 
+      r1.y -= cameraY; 
+      r1.z -= cameraZ;
 
-      double x2 = projected.data[j][0];
-      double y2 = projected.data[j][1];
+      r2.x -= cameraX; 
+      r2.y -= cameraY; 
+      r2.z -= cameraZ;
 
-      int sx1 = (int)((x1 + 1) * 0.5 * screen_width);
-      int sy1 = (int)((1 - y1) * 0.5 * screen_height);
+      r3.x -= cameraX; 
+      r3.y -= cameraY; 
+      r3.z -= cameraZ;
+      
+      //multiply by projection matrix
+      Vector4D p1 = r1.mul(project);
+      Vector4D p2 = r2.mul(project);
+      Vector4D p3 = r3.mul(project);
 
-      int sx2 = (int)((x2 + 1) * 0.5 * screen_width);
-      int sy2 = (int)((1 - y2) * 0.5 * screen_height);
+      //perspective divide
+      if (p1.w != 0){
+        p1.x /= p1.w; 
+        p1.y /= p1.w; 
+        p1.z /= p1.w;
+      }
 
-      drawer.drawline(g2, sx1, sy1, sx2, sy2);
+      if (p2.w != 0){
+        p2.x /= p2.w; 
+        p2.y /= p2.w; 
+        p2.z /= p2.w;
+      }
+
+      if(p3.w != 0){
+        p3.x /= p3.w; 
+        p3.y /= p3.w; 
+        p3.z /= p3.w;
+      }
+
+      // Convert from NDC to screen space
+      int sx1 = (int)((p1.x + 1) * 0.5 * screen_width);
+      int sy1 = (int)(((p1.y + 1) * 0.5) * screen_height);
+
+      int sx2 = (int)((p2.x + 1) * 0.5 * screen_width);
+      int sy2 = (int)(((p2.y + 1) * 0.5) * screen_height);
+
+      int sx3 = (int)((p3.x + 1) * 0.5 * screen_width);
+      int sy3 = (int)(((p3.y + 1) * 0.5) * screen_height);
+
+      Vector3D a = new Vector3D(sx1, sy1, p1.z);
+      Vector3D b = new Vector3D(sx2, sy2, p2.z);
+      Vector3D c = new Vector3D(sx3, sy3, p3.z);
+
+      drawer.draw_triangle(a,b,c, g2);
+
+      //drawer.drawline(g2, sx1, sy1, sx2, sy2);
+      //drawer.drawline(g2, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
+      //drawer.drawline(g2, sx3, sy3, sx1, sy1);
     }
   }
 }
 
+
 class LineDrawer{
 
-  public void put_pixel(Graphics2D graphic, int x1, int y1){
-    graphic.setColor(Color.WHITE);
+  public void put_pixel(Graphics2D graphic, int x1, int y1, Color color){
+    graphic.setColor(color);
     graphic.fillRect(x1, y1, 1, 1);
   }
 
@@ -235,7 +303,7 @@ class LineDrawer{
       int p = 2*dy - dx;
 
       for(int x = x1; x < x2+1; x++){
-        put_pixel(graphic, x, y);
+        put_pixel(graphic, x, y,  Color.WHITE);
         if(p >= 0){
           y += dir;
           p = p + 2*dy - 2*dx;
@@ -273,7 +341,7 @@ class LineDrawer{
       int p = 2*dx - dy;
 
       for(int y = y1; y < y2+1; y++){
-        put_pixel(graphic, x, y);
+        put_pixel(graphic, x, y,  Color.WHITE);
         if(p >= 0){
           x += dir;
           p = p + 2*dx - 2*dy;
@@ -302,6 +370,50 @@ class LineDrawer{
       int x2 = (int) a.data[next][0];
       int y2 = (int) a.data[next][1];
       drawline(graphic, x1, y1, x2, y2);
+    }
+  }
+
+  public double edge_function(Vector3D a, Vector3D b, Vector3D c){
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  }
+
+  public void draw_triangle(Vector3D v1, Vector3D v2, Vector3D v3, Graphics2D g2){
+    int screen_height = 800;
+    int screen_width = 800;
+
+    Color colourA = new Color(255, 0, 0); // Red
+    Color colourB = new Color(0, 255, 0); // Green
+    Color colourC = new Color(0, 0, 255); // Blue
+
+    double normalize_factor = edge_function(v1, v2, v3);
+
+    int minX = (int) Math.max(0, Math.floor(Math.min(v1.x, Math.min(v2.x, v3.x))));
+    int maxX = (int) Math.min(screen_width - 1, Math.ceil(Math.max(v1.x, Math.max(v2.x, v3.x))));
+    int minY = (int) Math.max(0, Math.floor(Math.min(v1.y, Math.min(v2.y, v3.y))));
+    int maxY = (int) Math.min(screen_height - 1, Math.ceil(Math.max(v1.y, Math.max(v2.y, v3.y))));
+
+    for(int i = minY; i < maxY; i++){
+      for(int j = minX; j < maxX; j++){
+        Vector3D init_point = new Vector3D(j, i, 0);
+
+        double abp = edge_function(v1, v2, init_point);
+        double bcp = edge_function(v2, v3, init_point);
+        double cap = edge_function(v3, v1, init_point);
+
+        double weightA = bcp/normalize_factor;
+        double weightB = cap/normalize_factor;
+        double weightC = abp/normalize_factor;
+
+        if(abp >= 0 && bcp >= 0 && cap >= 0){
+          double r = colourA.getRed() * weightA + colourB.getRed() * weightB + colourC.getRed() * weightC;
+          double g = colourA.getGreen() * weightA + colourB.getGreen() * weightB + colourC.getGreen() * weightC;   
+          double b = colourA.getBlue() * weightA + colourB.getBlue() * weightB + colourC.getBlue() * weightC;
+
+          Color gradient = new Color((int)r, (int)g, (int)b);
+
+          put_pixel(g2, (int)j, (int) i, gradient);
+        }
+      }
     }
   }
 }
