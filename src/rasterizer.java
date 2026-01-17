@@ -5,9 +5,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -54,36 +51,6 @@ public class rasterizer extends  JPanel implements Runnable{
     {0,0,-((far*near)/(far - near)),0}
   });
 
-  Matrix cube = new Matrix(new double[][]{
-    {-size, -size, -size, 1},
-    {-size, -size,  size, 1},
-    {-size,  size, -size, 1},
-    {-size,  size,  size, 1},
-    { size, -size, -size, 1},
-    { size, -size,  size, 1},
-    { size,  size, -size, 1},
-    { size,  size,  size, 1}
-  });
-
-  int[][] edges = {
-    {0,1},{0,2},{0,4},
-    {1,3},{1,5},
-    {2,3},{2,6},
-    {3,7},
-    {4,5},{4,6},
-    {5,7},
-    {6,7}
-  };  
-
-  int[][] faces = {
-    {0, 1, 3, 2}, 
-    {4, 5, 7, 6}, 
-    {0, 1, 5, 4}, 
-    {2, 3, 7, 6}, 
-    {0, 2, 6, 4}, 
-    {1, 3, 7, 5}  
-  };
-
   LineDrawer drawer = new LineDrawer();
   public static void main(String[] args) {
       JFrame frame = new JFrame();
@@ -97,8 +64,9 @@ public class rasterizer extends  JPanel implements Runnable{
   }
 
   public rasterizer(){
+    Color color = new Color(0,0,0);
     setPreferredSize(new Dimension(screen_width, screen_height));
-    setBackground(Color.BLACK);
+    setBackground(color);
     setFocusable(true);
     requestFocusInWindow();
     setOpaque(true);
@@ -130,13 +98,6 @@ public class rasterizer extends  JPanel implements Runnable{
         }
       }
     });
-
-    addMouseWheelListener(new MouseWheelListener(){
-      @Override
-      public void mouseWheelMoved(MouseWheelEvent e) {
-        scrollDelta += e.getPreciseWheelRotation();
-      }
-    });
   }
 
   private void start() {
@@ -151,26 +112,17 @@ public class rasterizer extends  JPanel implements Runnable{
     while (is_running) {
       lastTime = System.nanoTime();
 
-      double targetFOV = fov;
-      targetFOV -= scrollDelta * 1.3;
+      if(move_left)  {cameraX += 0.1;}
+      if(move_right) {cameraX -= 0.1;}
+      if(move_up)    {cameraY += 0.1;}
+      if(move_down)  {cameraY -= 0.1;}
 
-      if(targetFOV < 10){targetFOV = 10;}
-      if(targetFOV > 140){targetFOV = 140;}
+      if(move_camera_forward) {cameraZ += 0.1;}
+      if(move_camera_backward) {cameraZ -= 0.1;}
 
-      if(move_left)  {cameraX -= 1;}
-      if(move_right) {cameraX += 1;}
-      if(move_up)    {cameraY += 1;}
-      if(move_down)  {cameraY -= 1;}
-
-      if(move_camera_forward) {cameraZ += 1;}
-      if(move_camera_backward) {cameraZ -= 1;}
-
-      if(cameraZ > 30){
-        cameraZ = 30;
+      if(cameraZ > 3){
+        cameraZ = 3;
       }
-      
-      fov += (targetFOV - fov) * 0.2;
-      scrollDelta = 0;
 
       angle += frame_speed;
       repaint();
@@ -195,8 +147,8 @@ public class rasterizer extends  JPanel implements Runnable{
     g2.setColor(Color.RED);
 
     Matrix rotation = new Matrix(new double[4][4]).combined_rotation(angle);
-
-    ArrayList<Triangle> projectedTris = new ArrayList<>();
+    
+    //Graphics Pipeline:
 
     for(Triangle tri : MyMeshes.cube.tris) {
 
@@ -204,65 +156,73 @@ public class rasterizer extends  JPanel implements Runnable{
       Vector4D r2 = tri.v2.mul(rotation);
       Vector4D r3 = tri.v3.mul(rotation);
 
-      r1.z += 50;
-      r2.z += 50;
-      r3.z += 50;
+      //Translation/offset into the screen, to avoid drawing behind the camera
+      r1.z += 5;
+      r2.z += 5;
+      r3.z += 5;
 
-      r1.x -= cameraX; 
-      r1.y -= cameraY; 
-      r1.z -= cameraZ;
+      Vector3D a = new Vector3D((r2.x - r1.x), (r2.y - r1.y), (r2.z - r1.z));
+      Vector3D b = new Vector3D((r3.x - r1.x), (r3.y - r1.y), (r3.z - r1.z));
+      Vector3D normal = (Vector3D.cross(b, a)).normalize();
 
-      r2.x -= cameraX; 
-      r2.y -= cameraY; 
-      r2.z -= cameraZ;
 
-      r3.x -= cameraX; 
-      r3.y -= cameraY; 
-      r3.z -= cameraZ;
-      
-      //multiply by projection matrix
-      Vector4D p1 = r1.mul(project);
-      Vector4D p2 = r2.mul(project);
-      Vector4D p3 = r3.mul(project);
+      Vector3D center = new Vector3D(
+        (r1.x + r2.x + r3.x) / 3.0,
+        (r1.y + r2.y + r3.y) / 3.0,
+        (r1.z + r2.z + r3.z) / 3.0);
 
-      //perspective divide
-      if (p1.w != 0){
-        p1.x /= p1.w; 
-        p1.y /= p1.w; 
-        p1.z /= p1.w;
+      Vector3D view = new Vector3D(center.x - cameraX, center.y - cameraY, center.z - cameraZ);
+
+      if(Vector3D.dot(normal, view) < 0){
+
+        r1.x -= cameraX;      r1.y -= cameraY;      r1.z -= cameraZ;
+        r2.x -= cameraX;      r2.y -= cameraY;      r2.z -= cameraZ;
+        r3.x -= cameraX;      r3.y -= cameraY;      r3.z -= cameraZ;
+        
+        //multiply by projection matrix --> project onto screen
+        Vector4D p1 = r1.mul(project);
+        Vector4D p2 = r2.mul(project);
+        Vector4D p3 = r3.mul(project);
+
+        //perspective divide
+        if (p1.w != 0){
+          p1.x /= p1.w; 
+          p1.y /= p1.w; 
+          p1.z /= p1.w;
+        }
+
+        if (p2.w != 0){
+          p2.x /= p2.w; 
+          p2.y /= p2.w; 
+          p2.z /= p2.w;
+        }
+
+        if(p3.w != 0){
+          p3.x /= p3.w; 
+          p3.y /= p3.w; 
+          p3.z /= p3.w;
+        }
+
+        // Convert from NDC to screen space
+        int sx1 = (int)((p1.x + 1) * 0.5 * screen_width);
+        int sy1 = (int)(((p1.y + 1) * 0.5) * screen_height);
+
+        int sx2 = (int)((p2.x + 1) * 0.5 * screen_width);
+        int sy2 = (int)(((p2.y + 1) * 0.5) * screen_height);
+
+        int sx3 = (int)((p3.x + 1) * 0.5 * screen_width);
+        int sy3 = (int)(((p3.y + 1) * 0.5) * screen_height);
+
+        Vector3D A = new Vector3D(sx1, sy1, p1.z);
+        Vector3D B = new Vector3D(sx2, sy2, p2.z);
+        Vector3D C = new Vector3D(sx3, sy3, p3.z);
+
+        drawer.draw_triangle(A,B,C, g2);
+
+        //drawer.drawline(g2, sx1, sy1, sx2, sy2);
+        //drawer.drawline(g2, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
+        //drawer.drawline(g2, sx3, sy3, sx1, sy1);
       }
-
-      if (p2.w != 0){
-        p2.x /= p2.w; 
-        p2.y /= p2.w; 
-        p2.z /= p2.w;
-      }
-
-      if(p3.w != 0){
-        p3.x /= p3.w; 
-        p3.y /= p3.w; 
-        p3.z /= p3.w;
-      }
-
-      // Convert from NDC to screen space
-      int sx1 = (int)((p1.x + 1) * 0.5 * screen_width);
-      int sy1 = (int)(((p1.y + 1) * 0.5) * screen_height);
-
-      int sx2 = (int)((p2.x + 1) * 0.5 * screen_width);
-      int sy2 = (int)(((p2.y + 1) * 0.5) * screen_height);
-
-      int sx3 = (int)((p3.x + 1) * 0.5 * screen_width);
-      int sy3 = (int)(((p3.y + 1) * 0.5) * screen_height);
-
-      Vector3D a = new Vector3D(sx1, sy1, p1.z);
-      Vector3D b = new Vector3D(sx2, sy2, p2.z);
-      Vector3D c = new Vector3D(sx3, sy3, p3.z);
-
-      drawer.draw_triangle(a,b,c, g2);
-
-      //drawer.drawline(g2, sx1, sy1, sx2, sy2);
-      //drawer.drawline(g2, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
-      //drawer.drawline(g2, sx3, sy3, sx1, sy1);
     }
   }
 }
@@ -381,9 +341,9 @@ class LineDrawer{
     int screen_height = 800;
     int screen_width = 800;
 
-    Color colourA = new Color(255, 0, 0); // Red
-    Color colourB = new Color(0, 255, 0); // Green
-    Color colourC = new Color(0, 0, 255); // Blue
+    Color colourA = new Color( 255, 9, 222); // Red
+    Color colourB = new Color(255, 198, 227); // Green
+    Color colourC = new Color(255, 250, 57); // Blue
 
     double normalize_factor = edge_function(v1, v2, v3);
 
