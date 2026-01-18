@@ -1,13 +1,12 @@
-
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-
 
 public class rasterizer extends  JPanel implements Runnable{
   Thread gameThread;
@@ -27,12 +26,9 @@ public class rasterizer extends  JPanel implements Runnable{
   private boolean move_camera_forward = false;
   private boolean move_camera_backward = false;
 
-  private double scrollDelta = 0;
-  private final double scroll_pace = 0.54;
-
   private int fov = 90;
   private final double aspect = screen_width/(double)screen_height;
-  private final double near = 0.1;
+  private final double near = 1;
   private final int far = 1000;
 
   private double angle = 0;
@@ -40,7 +36,6 @@ public class rasterizer extends  JPanel implements Runnable{
 
   private final int fps = 60;
   private final long frame_time = 1_000_000_000L/fps;
-  private final int size = 10;
 
   private double f = 1.0/Math.tan(Math.toRadians(fov)/2.0);
 
@@ -49,6 +44,13 @@ public class rasterizer extends  JPanel implements Runnable{
     {0, f, 0 , 0},
     {0, 0, ((far + near)/(far - near)), 1},
     {0,0,-((far*near)/(far - near)),0}
+  });
+
+  Matrix identity = new Matrix(new double[][]{
+    {1,0,0,0},
+    {0,1,0,0},
+    {0,0,1,0},
+    {0,0,0,1}
   });
 
   LineDrawer drawer = new LineDrawer();
@@ -65,6 +67,7 @@ public class rasterizer extends  JPanel implements Runnable{
 
   public rasterizer(){
     Color color = new Color(0,0,0);
+
     setPreferredSize(new Dimension(screen_width, screen_height));
     setBackground(color);
     setFocusable(true);
@@ -147,10 +150,22 @@ public class rasterizer extends  JPanel implements Runnable{
     g2.setColor(Color.RED);
 
     Matrix rotation = new Matrix(new double[4][4]).combined_rotation(angle);
+
+    ArrayList<Triangle> monkey_Triangles = OBJLoader.loadOBJ("monkey.obj");
+    Mesh monke = new Mesh();
+    monke.tris.addAll(monkey_Triangles);
+
+    ArrayList<Triangle> homer_triangles = OBJLoader.loadOBJ("homer.obj");
+    Mesh homer = new Mesh();
+    homer.tris.addAll(homer_triangles);
+
+    ArrayList<Triangle> rabbit_triangle = OBJLoader.loadOBJ("rabbit.obj");
+    Mesh rabbit = new Mesh();
+    rabbit.tris.addAll(rabbit_triangle);
     
     //Graphics Pipeline:
 
-    for(Triangle tri : MyMeshes.cube.tris) {
+    for(Triangle tri : monke.tris) {
 
       Vector4D r1 = tri.v1.mul(rotation);
       Vector4D r2 = tri.v2.mul(rotation);
@@ -205,23 +220,23 @@ public class rasterizer extends  JPanel implements Runnable{
 
         // Convert from NDC to screen space
         int sx1 = (int)((p1.x + 1) * 0.5 * screen_width);
-        int sy1 = (int)(((p1.y + 1) * 0.5) * screen_height);
+        int sy1 = (int)((1- (p1.y + 1) * 0.5) * screen_height);
 
         int sx2 = (int)((p2.x + 1) * 0.5 * screen_width);
-        int sy2 = (int)(((p2.y + 1) * 0.5) * screen_height);
+        int sy2 = (int)((1- (p2.y + 1) * 0.5) * screen_height);
 
         int sx3 = (int)((p3.x + 1) * 0.5 * screen_width);
-        int sy3 = (int)(((p3.y + 1) * 0.5) * screen_height);
+        int sy3 = (int)((1- (p3.y + 1) * 0.5) * screen_height);
 
         Vector3D A = new Vector3D(sx1, sy1, p1.z);
         Vector3D B = new Vector3D(sx2, sy2, p2.z);
         Vector3D C = new Vector3D(sx3, sy3, p3.z);
 
-        drawer.draw_triangle(A,B,C, g2);
+        //drawer.draw_triangle(A,B,C, g2);
 
-        //drawer.drawline(g2, sx1, sy1, sx2, sy2);
-        //drawer.drawline(g2, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
-        //drawer.drawline(g2, sx3, sy3, sx1, sy1);
+        drawer.drawline(g2, sx1, sy1, sx2, sy2);
+        drawer.drawline(g2, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
+        drawer.drawline(g2, sx3, sy3, sx1, sy1);
       }
     }
   }
@@ -337,43 +352,81 @@ class LineDrawer{
     return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
   }
 
-  public void draw_triangle(Vector3D v1, Vector3D v2, Vector3D v3, Graphics2D g2){
-    int screen_height = 800;
-    int screen_width = 800;
+public void draw_triangle(Vector3D v1, Vector3D v2, Vector3D v3, Graphics2D g) {
 
-    Color colourA = new Color( 255, 9, 222); // Red
-    Color colourB = new Color(255, 198, 227); // Green
-    Color colourC = new Color(255, 250, 57); // Blue
+    Vector3D[] v = { v1, v2, v3 };
+    java.util.Arrays.sort(v, (a, b) -> Double.compare(a.y, b.y));
 
-    double normalize_factor = edge_function(v1, v2, v3);
+    Vector3D v_top = v[0]; // top
+    Vector3D v_mid = v[1]; // middle
+    Vector3D v_bottom = v[2]; // bottom
 
-    int minX = (int) Math.max(0, Math.floor(Math.min(v1.x, Math.min(v2.x, v3.x))));
-    int maxX = (int) Math.min(screen_width - 1, Math.ceil(Math.max(v1.x, Math.max(v2.x, v3.x))));
-    int minY = (int) Math.max(0, Math.floor(Math.min(v1.y, Math.min(v2.y, v3.y))));
-    int maxY = (int) Math.min(screen_height - 1, Math.ceil(Math.max(v1.y, Math.max(v2.y, v3.y))));
+    Color color = new Color(234,32,154);
 
-    for(int i = minY; i < maxY; i++){
-      for(int j = minX; j < maxX; j++){
-        Vector3D init_point = new Vector3D(j, i, 0);
+    g.setColor(color);
 
-        double abp = edge_function(v1, v2, init_point);
-        double bcp = edge_function(v2, v3, init_point);
-        double cap = edge_function(v3, v1, init_point);
+    if (v_mid.y == v_bottom.y) {
+        flat_bottom(v_top, v_mid, v_bottom, g); // check to see if its a flat bottom triangle
+    }
 
-        double weightA = bcp/normalize_factor;
-        double weightB = cap/normalize_factor;
-        double weightC = abp/normalize_factor;
+    else if (v_top.y == v_mid.y) {
+        flat_top(v_top, v_mid, v_bottom, g); // check to see if its a flat top triangle
+    }
 
-        if(abp >= 0 && bcp >= 0 && cap >= 0){
-          double r = colourA.getRed() * weightA + colourB.getRed() * weightB + colourC.getRed() * weightC;
-          double g = colourA.getGreen() * weightA + colourB.getGreen() * weightB + colourC.getGreen() * weightC;   
-          double b = colourA.getBlue() * weightA + colourB.getBlue() * weightB + colourC.getBlue() * weightC;
+    // if its not a flat top or bottom triangle that means it an arbitary triangle
+    else {
+        double alpha = (v_mid.y - v_top.y) / (v_bottom.y - v_top.y); //percentage of distance covered  by v_mid between v_top to v_bottom
 
-          Color gradient = new Color((int)r, (int)g, (int)b);
+        //calculates the intersection point for the long edge 
+        Vector3D vi = new Vector3D(
+            v_top.x + alpha * (v_bottom.x - v_top.x),
+            v_mid.y,
+            v_top.z + alpha * (v_bottom.z - v_top.z)
+        );
 
-          put_pixel(g2, (int)j, (int) i, gradient);
+        flat_bottom(v_top, v_mid, vi, g);
+        flat_top(v_mid, vi, v_bottom, g);
+    }
+  }
+
+  private void flat_bottom(Vector3D v_top, Vector3D v_mid, Vector3D v_bottom, Graphics2D g) {
+    double slope1 = (v_mid.x - v_top.x)/(v_mid.y - v_top.y);
+    double slope2 = (v_bottom.x - v_top.x)/(v_bottom.y - v_top.y);
+
+    double curx1 = v_top.x;
+    double curx2 = v_top.x;
+
+    for (int y = (int)Math.ceil(v_top.y); y <= (int)Math.ceil(v_mid.y); y++) {
+        int xStart = (int)Math.ceil(Math.min(curx1, curx2));
+        int xEnd   = (int)Math.ceil(Math.max(curx1, curx2));
+
+        for (int x = xStart; x <= xEnd; x++) {
+            g.drawLine(x, y, x, y);
         }
-      }
+
+        curx1 += slope1;
+        curx2 += slope2;
+    }
+  }
+
+  private void flat_top(Vector3D v_top, Vector3D v_mid, Vector3D v_bottom, Graphics2D g) {
+    double slope1 = (v_bottom.x - v_top.x)/(v_bottom.y - v_top.y);
+    double slope2 = (v_bottom.x - v_mid.x)/(v_bottom.y - v_mid.y);
+
+    double curx1 = v_bottom.x;
+    double curx2 = v_bottom.x;
+
+    for (int y = (int)Math.ceil(v_bottom.y); y >= (int)Math.ceil(v_top.y); y--) {
+        int xStart = (int)Math.ceil(Math.min(curx1, curx2));
+        int xEnd   = (int)Math.ceil(Math.max(curx1, curx2));
+
+        for (int x = xStart; x <= xEnd; x++) {
+            g.drawLine(x, y, x, y);
+        }
+
+        curx1 -= slope1;
+        curx2 -= slope2;
     }
   }
 }
+
