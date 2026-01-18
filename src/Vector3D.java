@@ -1,4 +1,3 @@
-
 class Vector3D{
   public double x;
   public double y;
@@ -57,6 +56,18 @@ class Vector3D{
     double nw = this.x * m.data[0][3] + this.y * m.data[1][3] + this.z * m.data[2][3] + 1.0 * m.data[3][3];
 
     return new Vector4D(nx, ny, nz, nw);
+  }
+
+  public static double getDeterminant(Vector3D a, Vector3D b, Vector3D p){
+    Vector3D ab = new Vector3D(b.x, b.y, b.z);
+    ab.sub(a);
+
+    Vector3D ac = new Vector3D(p.x,p.y,p.z);
+    ac.sub(a);
+
+    double result = ac.y * ac.x - ab.x * ac.y;
+
+    return result;
   }
 }
 
