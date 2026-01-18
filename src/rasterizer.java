@@ -1,12 +1,15 @@
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+
 
 public class rasterizer extends  JPanel implements Runnable{
   Thread gameThread;
@@ -147,7 +150,9 @@ public class rasterizer extends  JPanel implements Runnable{
   protected void paintComponent(Graphics g){
     super.paintComponent(g);
     Graphics2D g2 = (Graphics2D) g;
-    g2.setColor(Color.RED);
+    g2.setColor(Color.WHITE);
+
+    BufferedImage screen = new BufferedImage(screen_width, screen_height, BufferedImage.TYPE_INT_RGB);
 
     Matrix rotation = new Matrix(new double[4][4]).combined_rotation(angle);
 
@@ -164,7 +169,6 @@ public class rasterizer extends  JPanel implements Runnable{
     rabbit.tris.addAll(rabbit_triangle);
     
     //Graphics Pipeline:
-
     for(Triangle tri : monke.tris) {
 
       Vector4D r1 = tri.v1.mul(rotation);
@@ -182,9 +186,9 @@ public class rasterizer extends  JPanel implements Runnable{
 
 
       Vector3D center = new Vector3D(
-        (r1.x + r2.x + r3.x) / 3.0,
-        (r1.y + r2.y + r3.y) / 3.0,
-        (r1.z + r2.z + r3.z) / 3.0);
+        (r1.x + r2.x + r3.x)/3.0,
+        (r1.y + r2.y + r3.y)/3.0,
+        (r1.z + r2.z + r3.z)/3.0);
 
       Vector3D view = new Vector3D(center.x - cameraX, center.y - cameraY, center.z - cameraZ);
 
@@ -200,57 +204,47 @@ public class rasterizer extends  JPanel implements Runnable{
         Vector4D p3 = r3.mul(project);
 
         //perspective divide
-        if (p1.w != 0){
-          p1.x /= p1.w; 
-          p1.y /= p1.w; 
-          p1.z /= p1.w;
-        }
-
-        if (p2.w != 0){
-          p2.x /= p2.w; 
-          p2.y /= p2.w; 
-          p2.z /= p2.w;
-        }
-
-        if(p3.w != 0){
-          p3.x /= p3.w; 
-          p3.y /= p3.w; 
-          p3.z /= p3.w;
-        }
+        if (p1.w != 0){p1.x /= p1.w; p1.y /= p1.w; p1.z /= p1.w;}
+        if (p2.w != 0){p2.x /= p2.w; p2.y /= p2.w; p2.z /= p2.w;}
+        if(p3.w != 0){p3.x /= p3.w; p3.y /= p3.w; p3.z /= p3.w;}
 
         // Convert from NDC to screen space
-        int sx1 = (int)((p1.x + 1) * 0.5 * screen_width);
-        int sy1 = (int)((1- (p1.y + 1) * 0.5) * screen_height);
+        int sx1 = (int)((p1.x + 1) * 0.5 * screen_width); // 0.5 to get it to the center of the screen, and + 1 to get it in infront of camera.
+        int sy1 = (int)((1 - (p1.y + 1) * 0.5) * screen_height);
 
         int sx2 = (int)((p2.x + 1) * 0.5 * screen_width);
-        int sy2 = (int)((1- (p2.y + 1) * 0.5) * screen_height);
+        int sy2 = (int)((1 - (p2.y + 1) * 0.5) * screen_height);
 
         int sx3 = (int)((p3.x + 1) * 0.5 * screen_width);
-        int sy3 = (int)((1- (p3.y + 1) * 0.5) * screen_height);
+        int sy3 = (int)((1 - (p3.y + 1) * 0.5) * screen_height);
 
         Vector3D A = new Vector3D(sx1, sy1, p1.z);
         Vector3D B = new Vector3D(sx2, sy2, p2.z);
         Vector3D C = new Vector3D(sx3, sy3, p3.z);
 
-        //drawer.draw_triangle(A,B,C, g2);
+        Color v1 = new Color(25,34,32);
+        Color v2 = new Color(135,44,52);
+        Color v3 = new Color(215,64,32);
 
-        drawer.drawline(g2, sx1, sy1, sx2, sy2);
-        drawer.drawline(g2, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
-        drawer.drawline(g2, sx3, sy3, sx1, sy1);
+        //drawer.draw_triangle(A,B,C,screen, v1, v2, v3);
+
+        drawer.drawline(screen, sx1, sy1, sx2, sy2);
+        drawer.drawline(screen, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
+        drawer.drawline(screen, sx3, sy3, sx1, sy1);
       }
     }
+    g.drawImage(screen, 0, 0, null);
   }
 }
 
 
 class LineDrawer{
 
-  public void put_pixel(Graphics2D graphic, int x1, int y1, Color color){
-    graphic.setColor(color);
-    graphic.fillRect(x1, y1, 1, 1);
+  public void put_pixel(BufferedImage screen, int x1, int y1, Color color){
+    screen.setRGB(x1,y1,color.getRGB());
   }
 
-  public void draw_line_h(Graphics2D graphic, int x1, int y1, int x2, int y2) {
+  public void draw_line_h(BufferedImage screen, int x1, int y1, int x2, int y2) {
     if (x1 > x2) {
         int tx = x1;
         int ty = y1;
@@ -278,7 +272,7 @@ class LineDrawer{
       int p = 2*dy - dx;
 
       for(int x = x1; x < x2+1; x++){
-        put_pixel(graphic, x, y,  Color.WHITE);
+        put_pixel(screen, x, y,  Color.WHITE);
         if(p >= 0){
           y += dir;
           p = p + 2*dy - 2*dx;
@@ -288,7 +282,7 @@ class LineDrawer{
     }
   }
 
-  public void draw_line_v(Graphics2D graphic, int x1, int y1, int x2, int y2) {
+  public void draw_line_v(BufferedImage screen, int x1, int y1, int x2, int y2) {
     if (y1 > y2) {
         int tx = x1; 
         int ty = y1;
@@ -316,7 +310,7 @@ class LineDrawer{
       int p = 2*dx - dy;
 
       for(int y = y1; y < y2+1; y++){
-        put_pixel(graphic, x, y,  Color.WHITE);
+        put_pixel(screen, x, y,  Color.WHITE);
         if(p >= 0){
           x += dir;
           p = p + 2*dx - 2*dy;
@@ -326,17 +320,17 @@ class LineDrawer{
     }
   }
 
-  public void drawline(Graphics2D graphic, int x0, int y0, int x1, int y1){
+  public void drawline(BufferedImage screen, int x0, int y0, int x1, int y1){
     
     if(Math.abs(x1 - x0) > Math.abs(y1 - y0)){
-      draw_line_h(graphic, x0, y0, x1, y1);
+      draw_line_h(screen, x0, y0, x1, y1);
     }
     else{
-      draw_line_v(graphic, x0, y0, x1, y1);
+      draw_line_v(screen, x0, y0, x1, y1);
     }
   }
 
-  public void connect(Graphics2D graphic, Matrix a){    
+  public void connect(BufferedImage screen, Matrix a){    
     for (int i = 0; i <  a.rows; i++) {
       int next = (i + 1)% a.rows;
 
@@ -344,7 +338,7 @@ class LineDrawer{
       int y1 = (int) a.data[i][1];
       int x2 = (int) a.data[next][0];
       int y2 = (int) a.data[next][1];
-      drawline(graphic, x1, y1, x2, y2);
+      drawline(screen, x1, y1, x2, y2);
     }
   }
 
@@ -352,81 +346,62 @@ class LineDrawer{
     return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
   }
 
-public void draw_triangle(Vector3D v1, Vector3D v2, Vector3D v3, Graphics2D g) {
+public void draw_triangle(Vector3D v1, Vector3D v2, Vector3D v3, BufferedImage screen, Color c1, Color c2, Color c3) {
+  
+  //bounding box
+  int minX = (int)Math.floor(Math.min(v1.x, Math.min(v2.x, v3.x)));
+  int maxX = (int)Math.ceil(Math.max(v1.x, Math.max(v2.x, v3.x)));
+  int minY = (int)Math.floor(Math.min(v1.y, Math.min(v2.y, v3.y)));
+  int maxY = (int)Math.ceil(Math.max(v1.y, Math.max(v2.y, v3.y)));
 
-    Vector3D[] v = { v1, v2, v3 };
-    java.util.Arrays.sort(v, (a, b) -> Double.compare(a.y, b.y));
+  double area = edge_function(v1, v2, v3);
 
-    Vector3D v_top = v[0]; // top
-    Vector3D v_mid = v[1]; // middle
-    Vector3D v_bottom = v[2]; // bottom
+  //go over every pixel in the bounding box
+  for (int y = minY; y <= maxY; y++) {
+    for (int x = minX; x <= maxX; x++) {
 
-    Color color = new Color(234,32,154);
+        //set an intital pixel to detect
+        Vector3D p = new Vector3D(x + 0.5, y + 0.5, 0);
 
-    g.setColor(color);
+        //barycentric weights
+        double w1 = (edge_function(v2, v3, p))/area;
+        double w2 = (edge_function(v3, v1, p))/area;
+        double w3 = (edge_function(v1, v2, p))/area;
 
-    if (v_mid.y == v_bottom.y) {
-        flat_bottom(v_top, v_mid, v_bottom, g); // check to see if its a flat bottom triangle
-    }
-
-    else if (v_top.y == v_mid.y) {
-        flat_top(v_top, v_mid, v_bottom, g); // check to see if its a flat top triangle
-    }
-
-    // if its not a flat top or bottom triangle that means it an arbitary triangle
-    else {
-        double alpha = (v_mid.y - v_top.y) / (v_bottom.y - v_top.y); //percentage of distance covered  by v_mid between v_top to v_bottom
-
-        //calculates the intersection point for the long edge 
-        Vector3D vi = new Vector3D(
-            v_top.x + alpha * (v_bottom.x - v_top.x),
-            v_mid.y,
-            v_top.z + alpha * (v_bottom.z - v_top.z)
-        );
-
-        flat_bottom(v_top, v_mid, vi, g);
-        flat_top(v_mid, vi, v_bottom, g);
+        //point inside the triangle
+        if (w1 >= 0 && w2 >= 0 && w3 >= 0) {
+            Color col = interpolateColor(p, v1, v2, v3, c1, c2, c3);
+            
+          if (x >= 0 && x < screen.getWidth() && y >= 0 && y < screen.getHeight()) { //prevents the entire screen from becoming a 'triangle'
+              screen.setRGB(x, y, col.getRGB());
+          }
+        }
+      }
     }
   }
 
-  private void flat_bottom(Vector3D v_top, Vector3D v_mid, Vector3D v_bottom, Graphics2D g) {
-    double slope1 = (v_mid.x - v_top.x)/(v_mid.y - v_top.y);
-    double slope2 = (v_bottom.x - v_top.x)/(v_bottom.y - v_top.y);
+  private Color interpolateColor(Vector3D p, Vector3D v1, Vector3D v2, Vector3D v3, Color c1, Color c2, Color c3) {
+    double area = edge_function(v1, v2, v3);
 
-    double curx1 = v_top.x;
-    double curx2 = v_top.x;
+    double w1 = edge_function(v2, v3, p) / area;
+    double w2 = edge_function(v3, v1, p) / area;
+    double w3 = edge_function(v1, v2, p) / area;
 
-    for (int y = (int)Math.ceil(v_top.y); y <= (int)Math.ceil(v_mid.y); y++) {
-        int xStart = (int)Math.ceil(Math.min(curx1, curx2));
-        int xEnd   = (int)Math.ceil(Math.max(curx1, curx2));
+    w1 = Math.max(0, Math.min(1, w1));
+    w2 = Math.max(0, Math.min(1, w2));
+    w3 = Math.max(0, Math.min(1, w3));
 
-        for (int x = xStart; x <= xEnd; x++) {
-            g.drawLine(x, y, x, y);
-        }
+    // Normalize just in case
+    double sum = w1 + w2 + w3;
+    w1 /= sum;
+    w2 /= sum;
+    w3 /= sum;
 
-        curx1 += slope1;
-        curx2 += slope2;
-    }
-  }
+    int r = (int)Math.round(c1.getRed() * w1 + c2.getRed() * w2 + c3.getRed() * w3);
+    int g = (int)Math.round(c1.getGreen() * w1 + c2.getGreen() * w2 + c3.getGreen() * w3);
+    int b = (int)Math.round(c1.getBlue() * w1 + c2.getBlue() * w2 + c3.getBlue() * w3);
 
-  private void flat_top(Vector3D v_top, Vector3D v_mid, Vector3D v_bottom, Graphics2D g) {
-    double slope1 = (v_bottom.x - v_top.x)/(v_bottom.y - v_top.y);
-    double slope2 = (v_bottom.x - v_mid.x)/(v_bottom.y - v_mid.y);
-
-    double curx1 = v_bottom.x;
-    double curx2 = v_bottom.x;
-
-    for (int y = (int)Math.ceil(v_bottom.y); y >= (int)Math.ceil(v_top.y); y--) {
-        int xStart = (int)Math.ceil(Math.min(curx1, curx2));
-        int xEnd   = (int)Math.ceil(Math.max(curx1, curx2));
-
-        for (int x = xStart; x <= xEnd; x++) {
-            g.drawLine(x, y, x, y);
-        }
-
-        curx1 -= slope1;
-        curx2 -= slope2;
-    }
+    return new Color(Math.min(255,r), Math.min(255,g), Math.min(255,b));
   }
 }
 
