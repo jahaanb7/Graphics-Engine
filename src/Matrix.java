@@ -84,7 +84,7 @@ class Matrix{
     }
   }
 
-  public Matrix rotateZ(double theta){
+  public static Matrix rotateZ(double theta){
     double radian_theta = ((Math.PI)/180) * theta;
 
     double sin = Math.sin(radian_theta);
@@ -99,7 +99,7 @@ class Matrix{
     return rotated_z;
   }
 
-  public Matrix rotateY(double theta){
+  public static Matrix rotateY(double theta){
     double radian_theta = ((Math.PI)/180) * theta;
 
     double sin = Math.sin(radian_theta);
@@ -114,7 +114,7 @@ class Matrix{
     return rotated_y;
   }
 
-  public Matrix rotateX(double theta){
+  public static Matrix rotateX(double theta){
     double radian_theta = ((Math.PI)/180) * theta;
 
     double sin = Math.sin(radian_theta);
