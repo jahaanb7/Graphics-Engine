@@ -69,7 +69,13 @@ class Vector3D{
 
     return result;
   }
+
+  public Vector4D toVector4D(){
+    return new Vector4D(x, y, z, 1);
+  }
 }
+
+
 
 class Vector4D {
   public double x, y, z, w;
@@ -81,6 +87,15 @@ class Vector4D {
       this.w = w;
     }
 
+  public Vector4D scalar_mul(double n){
+    this.x *= n;
+    this.y *= n;
+    this.z *=  n;
+    this.w *= 1;
+
+    return new Vector4D(x,y,z,w);
+  }
+
   public Vector4D mul(Matrix m) {
     double nx = this.x * m.data[0][0] + this.y * m.data[1][0] + this.z * m.data[2][0] + 1.0 * m.data[3][0];
     double ny = this.x * m.data[0][1] + this.y * m.data[1][1] + this.z * m.data[2][1] + 1.0 * m.data[3][1];
@@ -88,5 +103,18 @@ class Vector4D {
     double nw = this.x * m.data[0][3] + this.y * m.data[1][3] + this.z * m.data[2][3] + 1.0 * m.data[3][3];
 
     return new Vector4D(nx, ny, nz, nw);
+  }
+
+  public Vector4D apply(Vector3D v, double zOffset, double scale, Vector3D center) {
+    return new Vector4D(
+        (v.x - center.x) * scale,
+        (v.y - center.y) * scale,
+        (v.z - center.z) * scale + zOffset,
+        1
+    );
+  }
+
+  public Vector3D toVector3D(){
+    return new Vector3D(x, y, z);
   }
 }
