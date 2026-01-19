@@ -1,7 +1,4 @@
-class Matrix{
-  private int screen_height = 800;
-  private int screen_width = 800;
-  
+class Matrix{  
   public int rows;
   public int columns;
   public double[][] data;
