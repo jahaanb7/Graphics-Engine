@@ -61,6 +61,7 @@ public class rasterizer extends  JPanel implements Runnable{
   Mesh homer = new Mesh();
   Mesh rabbit = new Mesh();
   Mesh sphere = new Mesh();
+  Mesh scene = new Mesh();
 
   LineDrawer drawer = new LineDrawer();
   public static void main(String[] args) {
@@ -83,6 +84,8 @@ public class rasterizer extends  JPanel implements Runnable{
     rabbit.tris.addAll(OBJLoader.loadOBJ("rabbit.obj"));
 
     sphere.tris.addAll(OBJLoader.loadOBJ("sphere.obj"));
+
+    scene.tris.addAll(OBJLoader.loadOBJ("random_scene.obj"));
 
     setPreferredSize(new Dimension(screen_width, screen_height));
     setBackground(Color.WHITE);
@@ -237,7 +240,7 @@ public class rasterizer extends  JPanel implements Runnable{
         Vector3D B = new Vector3D(sx2, sy2, p2.z);
         Vector3D C = new Vector3D(sx3, sy3, p3.z);
 
-        Color baseColor = new Color(200, 150, 100);
+        Color baseColor = new Color(169,169,169);
 
         int r_color = (int)(baseColor.getRed() * shading);
         int g_color = (int)(baseColor.getGreen() * shading);
