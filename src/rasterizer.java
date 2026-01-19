@@ -6,7 +6,6 @@ import java.awt.Graphics2D;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -40,6 +39,7 @@ public class rasterizer extends  JPanel implements Runnable{
   private final int fps = 60;
   private final long frame_time = 1_000_000_000L/fps;
 
+
   private double f = 1.0/Math.tan(Math.toRadians(fov)/2.0);
 
   Matrix project = new Matrix(new double[][] {
@@ -56,6 +56,11 @@ public class rasterizer extends  JPanel implements Runnable{
     {0,0,0,1}
   });
 
+  Mesh monke = new Mesh();
+  Mesh homer = new Mesh();
+  Mesh rabbit = new Mesh();
+  Mesh sphere = new Mesh();
+
   LineDrawer drawer = new LineDrawer();
   public static void main(String[] args) {
       JFrame frame = new JFrame();
@@ -69,10 +74,17 @@ public class rasterizer extends  JPanel implements Runnable{
   }
 
   public rasterizer(){
-    Color color = new Color(0,0,0);
+
+    monke.tris.addAll(OBJLoader.loadOBJ("monkey.obj"));
+
+    homer.tris.addAll(OBJLoader.loadOBJ("homer.obj"));
+
+    rabbit.tris.addAll(OBJLoader.loadOBJ("rabbit.obj"));
+
+    sphere.tris.addAll(OBJLoader.loadOBJ("sphere.obj"));
 
     setPreferredSize(new Dimension(screen_width, screen_height));
-    setBackground(color);
+    setBackground(Color.WHITE);
     setFocusable(true);
     requestFocusInWindow();
     setOpaque(true);
@@ -118,8 +130,8 @@ public class rasterizer extends  JPanel implements Runnable{
     while (is_running) {
       lastTime = System.nanoTime();
 
-      if(move_left)  {cameraX += 0.1;}
-      if(move_right) {cameraX -= 0.1;}
+      if(move_left)  {cameraX -= 0.1;}
+      if(move_right) {cameraX += 0.1;}
       if(move_up)    {cameraY += 0.1;}
       if(move_down)  {cameraY -= 0.1;}
 
@@ -156,18 +168,6 @@ public class rasterizer extends  JPanel implements Runnable{
 
     Matrix rotation = new Matrix(new double[4][4]).combined_rotation(angle);
 
-    ArrayList<Triangle> monkey_Triangles = OBJLoader.loadOBJ("monkey.obj");
-    Mesh monke = new Mesh();
-    monke.tris.addAll(monkey_Triangles);
-
-    ArrayList<Triangle> homer_triangles = OBJLoader.loadOBJ("homer.obj");
-    Mesh homer = new Mesh();
-    homer.tris.addAll(homer_triangles);
-
-    ArrayList<Triangle> rabbit_triangle = OBJLoader.loadOBJ("rabbit.obj");
-    Mesh rabbit = new Mesh();
-    rabbit.tris.addAll(rabbit_triangle);
-    
     //Graphics Pipeline:
     for(Triangle tri : monke.tris) {
 
@@ -176,9 +176,16 @@ public class rasterizer extends  JPanel implements Runnable{
       Vector4D r3 = tri.v3.mul(rotation);
 
       //Translation/offset into the screen, to avoid drawing behind the camera
-      r1.z += 5;
-      r2.z += 5;
-      r3.z += 5;
+      double scale = 2;   // scale model
+      double zOffset = 10;    // offset the model in the z-axis to push it forward
+      
+      r1.scalar_mul(scale);
+      r2.scalar_mul(scale);
+      r3.scalar_mul(scale);
+
+      r1.z += zOffset;
+      r2.z += zOffset;
+      r3.z += zOffset;
 
       Vector3D a = new Vector3D((r2.x - r1.x), (r2.y - r1.y), (r2.z - r1.z));
       Vector3D b = new Vector3D((r3.x - r1.x), (r3.y - r1.y), (r3.z - r1.z));
@@ -226,11 +233,11 @@ public class rasterizer extends  JPanel implements Runnable{
         Color v2 = new Color(135,44,52);
         Color v3 = new Color(215,64,32);
 
-        //drawer.draw_triangle(A,B,C,screen, v1, v2, v3);
+        drawer.draw_triangle(A,B,C,screen, v1, v2, v3);
 
-        drawer.drawline(screen, sx1, sy1, sx2, sy2);
-        drawer.drawline(screen, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
-        drawer.drawline(screen, sx3, sy3, sx1, sy1);
+        //drawer.drawline(screen, sx1, sy1, sx2, sy2);
+        //drawer.drawline(screen, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
+        //drawer.drawline(screen, sx3, sy3, sx1, sy1);
       }
     }
     g.drawImage(screen, 0, 0, null);
@@ -404,4 +411,3 @@ public void draw_triangle(Vector3D v1, Vector3D v2, Vector3D v3, BufferedImage s
     return new Color(Math.min(255,r), Math.min(255,g), Math.min(255,b));
   }
 }
-
