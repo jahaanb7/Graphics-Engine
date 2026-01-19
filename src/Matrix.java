@@ -1,6 +1,6 @@
 class Matrix{
-  private int screen_height = 600;
-  private int screen_width = 600;
+  private int screen_height = 800;
+  private int screen_width = 800;
   
   public int rows;
   public int columns;
