@@ -1,3 +1,4 @@
+package src;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -176,8 +177,8 @@ public class rasterizer extends  JPanel implements Runnable{
       Vector4D r3 = tri.v3.mul(rotation);
 
       //Translation/offset into the screen, to avoid drawing behind the camera
-      double scale = 2;   // scale model
-      double zOffset = 10;    // offset the model in the z-axis to push it forward
+      double scale = 1;   // scale model
+      double zOffset = 5;    // offset the model in the z-axis to push it forward
       
       r1.scalar_mul(scale);
       r2.scalar_mul(scale);
@@ -197,9 +198,14 @@ public class rasterizer extends  JPanel implements Runnable{
         (r1.y + r2.y + r3.y)/3.0,
         (r1.z + r2.z + r3.z)/3.0);
 
-      Vector3D view = new Vector3D(center.x - cameraX, center.y - cameraY, center.z - cameraZ);
+      Vector3D view = new Vector3D(center.x - cameraX, center.y - cameraY, center.z - cameraZ); //represents the postion of camera
 
       if(Vector3D.dot(normal, view) < 0){
+
+        Vector3D light_dir = new Vector3D(0,0 ,-1.0);
+        light_dir.normalize();
+
+        double shading = Vector3D.dot(normal, light_dir);
 
         r1.x -= cameraX;      r1.y -= cameraY;      r1.z -= cameraZ;
         r2.x -= cameraX;      r2.y -= cameraY;      r2.z -= cameraZ;
@@ -216,7 +222,9 @@ public class rasterizer extends  JPanel implements Runnable{
         if(p3.w != 0){p3.x /= p3.w; p3.y /= p3.w; p3.z /= p3.w;}
 
         // Convert from NDC to screen space
-        int sx1 = (int)((p1.x + 1) * 0.5 * screen_width); // 0.5 to get it to the center of the screen, and + 1 to get it in infront of camera.
+
+        // 0.5 to get it to the center of the screen, and + 1 to get it in infront of camera.
+        int sx1 = (int)((p1.x + 1) * 0.5 * screen_width); 
         int sy1 = (int)((1 - (p1.y + 1) * 0.5) * screen_height);
 
         int sx2 = (int)((p2.x + 1) * 0.5 * screen_width);
@@ -229,11 +237,19 @@ public class rasterizer extends  JPanel implements Runnable{
         Vector3D B = new Vector3D(sx2, sy2, p2.z);
         Vector3D C = new Vector3D(sx3, sy3, p3.z);
 
-        Color v1 = new Color(25,34,32);
-        Color v2 = new Color(135,44,52);
-        Color v3 = new Color(215,64,32);
+        Color baseColor = new Color(200, 150, 100);
 
-        drawer.draw_triangle(A,B,C,screen, v1, v2, v3);
+        int r_color = (int)(baseColor.getRed() * shading);
+        int g_color = (int)(baseColor.getGreen() * shading);
+        int b_color = (int)(baseColor.getBlue() * shading);
+
+        r_color = Math.min(255, Math.max(0, r_color));
+        g_color = Math.min(255, Math.max(0, g_color));
+        b_color = Math.min(255, Math.max(0, b_color));
+
+        Color shadedColor = new Color(r_color, g_color, b_color);
+
+        drawer.draw_triangle(A, B, C, screen, shadedColor, shadedColor, shadedColor);
 
         //drawer.drawline(screen, sx1, sy1, sx2, sy2);
         //drawer.drawline(screen, sx2, sy2, sx3, sy3);     // This is for wireframe and for debugging
